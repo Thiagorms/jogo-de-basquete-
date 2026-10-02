@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Basquete 2D — Simulador de 3 Pontos</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#080b12;--panel:#111827;--panel2:#172033;--line:#273449;
+  --text:#f8fafc;--muted:#94a3b8;--orange:#f97316;--orange2:#fb923c;
+  --blue:#38bdf8;--green:#4ade80;--red:#f87171;--gold:#facc15
+}
+body{margin:0;background:
+radial-gradient(circle at 50% -10%,#1d2a43 0,#0b101b 45%,#070a10 100%);
+color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif;
+display:flex;justify-content:center;min-height:100vh}
+.wrap{width:min(1180px,100%);padding:22px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.brand h1{margin:0;font-size:26px;letter-spacing:-.5px}
+.brand p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.info{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.pill,.select button,#reset{border:1px solid var(--line);background:rgba(17,24,39,.88);color:var(--text);
+padding:9px 12px;border-radius:11px;box-shadow:0 5px 18px #0003}
+.pill b{color:#fff}
+.player-select{display:flex;gap:7px}
+.player-select button{cursor:pointer;font-weight:800}
+.player-select button.active{background:linear-gradient(135deg,var(--orange),#ea580c);border-color:#fdba74;color:#111827}
+#reset{cursor:pointer;background:#1e293b;font-weight:700}
+#reset:hover,.player-select button:hover{filter:brightness(1.12)}
+.gamebox{position:relative;background:#b9783e;border:1px solid #334155;border-radius:18px;overflow:hidden;
+box-shadow:0 22px 60px #0008}
+canvas{display:block;width:100%;height:auto;background:#b9783e}
+.hud{position:absolute;left:14px;top:14px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.badge{background:#08101dcc;border:1px solid #ffffff20;backdrop-filter:blur(8px);padding:7px 10px;border-radius:9px;font-size:12px}
+.badge strong{font-size:14px}
+.powerbox,.analysis,.help{margin-top:12px;background:linear-gradient(180deg,#121a2a,#0f1624);
+border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 30px #0003}
+.powerline{display:flex;justify-content:space-between;margin-bottom:8px;font-weight:800}
+.powerline span:last-child{color:var(--gold)}
+.bar{height:18px;background:#263244;border-radius:999px;overflow:hidden;border:1px solid #334155}
+.fill{height:100%;width:10%;background:linear-gradient(90deg,#22c55e 0 42%,#eab308 68%,#ef4444 100%);
+transition:width .04s linear}
+.status{margin-top:8px;color:#cbd5e1;font-size:13px}
+.analysis-title{font-size:15px;font-weight:900;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.card{background:#0b1220;border:1px solid #263449;border-radius:11px;padding:11px}
+.card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.card .value{font-size:20px;font-weight:900;margin-top:4px}
+.card .desc{font-size:11px;color:#aebacc;margin-top:4px;line-height:1.35}
+.result{margin-top:10px;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px dashed #334155;color:#dbeafe;font-size:13px}
+.help{color:#cbd5e1;font-size:13px;line-height:1.55}
+.help b{color:#fff}.help ul{margin:8px 0 0 18px;padding:0}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:22px}}
+@media(max-width:600px){.wrap{padding:9px}.grid{grid-template-columns:1fr 1fr}.pill{font-size:12px}.help{font-size:12px}.hud{left:8px;top:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <h1>🏀 Basquete 2D — Simulador de 3 Pontos</h1>
+      <p>Teste como habilidade, preparação, força e pressão defensiva afetam o arremesso.</p>
+    </div>
+    <div class="info">
+      <div class="pill">Tentativas <b id="shots">0/10</b></div>
+      <div class="pill">Cestas <b id="made">0</b></div>
+      <div class="player-select">
+        <button id="common" class="active">👤 Comum</button>
+        <button id="pro">⭐ Profissional</button>
+      </div>
+      <button id="reset">↻ Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="gamebox">
+    <canvas id="game" width="1000" height="620"></canvas>
+    <div class="hud">
+      <div class="badge">Precisão base: <strong id="basePct">25–35%</strong></div>
+      <div class="badge">Pressão: <strong id="pressure">BAIXA</strong></div>
+      <div class="badge">Preparação: <strong id="prep">100%</strong></div>
+    </div>
+  </div>
+
+  <div class="powerbox">
+    <div class="powerline"><span>FORÇA — segure ESPAÇO e solte</span><span id="pct">10%</span></div>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div class="status" id="status">Setas/WASD: mover • Espaço: carregar e arremessar • Posicione-se atrás da linha de 3.</div>
+  </div>
+
+  <div class="analysis">
+    <div class="analysis-title">📊 Análise da jogada</div>
+    <div class="grid">
+      <div class="card"><div class="label">Controle</div><div class="value" id="control">70%</div><div class="desc">Chance de receber/controlar e se posicionar bem.</div></div>
+      <div class="card"><div class="label">Preparação</div><div class="value" id="preparation">60%</div><div class="desc">Execução do movimento antes do arremesso.</div></div>
+      <div class="card"><div class="label">Precisão</div><div class="value" id="accuracy">25–35%</div><div class="desc">Faixa aproximada para uma bola livre.</div></div>
+      <div class="card"><div class="label">Defesa</div><div class="value" id="defenseEffect">—</div><div class="desc">Impacto da proximidade do defensor.</div></div>
+    </div>
+    <div class="result" id="result">Em 10 arremessos livres, a referência do exemplo é aproximadamente <b>2–4 cestas</b> para o comum e <b>3–5</b> para o profissional.</div>
+  </div>
+
+  <div class="help">
+    <b>Como a simulação funciona:</b>
+    <ul>
+      <li><b>Controle:</b> o jogador precisa estar bem posicionado para aproveitar a jogada.</li>
+      <li><b>Preparação:</b> carregar a força na zona ideal aumenta a qualidade da execução.</li>
+      <li><b>Arremesso:</b> a chance final combina habilidade, preparação, distância, força e pressão do defensor.</li>
+      <li><b>Pressão:</b> quanto mais perto o defensor estiver, maior o desconto na precisão — especialmente para o jogador comum.</li>
+      <li>As porcentagens são uma <b>representação didática</b> dos valores do exemplo, não estatísticas reais de todos os jogadores.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const W=c.width,H=c.height;
+const hoop={x:88,y:H/2};
+const player={x:790,y:H/2,r:20};
+const defender={x:640,y:H/2,vx:0,vy:0};
+let keys={},charging=false,chargeStart=0,power=10,shots=0,made=0,ball=null,last=performance.now();
+let playerType='common', currentStats={control:70,prep:60,min:25,max:35};
+let netShake=0, netPulse=0;
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+function getStats(){
+  return playerType==='pro'
+    ? {control:95,prep:90,min:35,max:45}
+    : {control:70,prep:60,min:25,max:35};
+}
+function setStatus(s){document.getElementById('status').textContent=s}
+function updateUI(){
+  currentStats=getStats();
+  const pressureDist=dist(player,defender);
+  const pressure=Math.max(0,1-pressureDist/240);
+  const pressureLabel=pressure>.72?'ALTA':pressure>.38?'MÉDIA':'BAIXA';
+  document.getElementById('shots').textContent=shots+'/10';
+  document.getElementById('made').textContent=made;
+  document.getElementById('pct').textContent=Math.round(power)+'%';
+  document.getElementById('fill').style.width=power+'%';
+  document.getElementById('control').textContent=currentStats.control+'%';
+  document.getElementById('preparation').textContent=currentStats.prep+'%';
+  document.getElementById('accuracy').textContent=currentStats.min+'–'+currentStats.max+'%';
+  document.getElementById('basePct').textContent=currentStats.min+'–'+currentStats.max+'%';
+  document.getElementById('pressure').textContent=pressureLabel;
+  document.getElementById('prep').textContent=Math.round(prepQuality())+'%';
+  const effect=Math.round(pressure* (playerType==='pro'?12:18));
+  document.getElementById('defenseEffect').textContent=effect?'-'+effect+' p.p.':'mínimo';
+}
+function prepQuality(){
+  // Ideal entre 72 e 88% de força; fora disso a preparação perde qualidade.
+  return clamp(100-Math.abs(power-80)*2.5,15,100);
+}
+function reset(){
+  shots=0;made=0;power=10;ball=null;charging=false;
+  player.x=790;player.y=H/2;defender.x=640;defender.y=H/2;
+  updateUI();
+  setStatus('Setas/WASD: mover • Espaço: carregar e arremessar • Posicione-se atrás da linha de 3.');
+}
+document.getElementById('common').onclick=()=>{
+  playerType='common';
+  document.getElementById('common').classList.add('active');
+  document.getElementById('pro').classList.remove('active');
+  reset();
+};
+document.getElementById('pro').onclick=()=>{
+  playerType='pro';
+  document.getElementById('pro').classList.add('active');
+  document.getElementById('common').classList.remove('active');
+  reset();
+};
+document.getElementById('reset').onclick=reset;
+
+addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(e.code==='Space'){e.preventDefault();if(!charging&&!ball&&shots<10)startCharge();}
+});
+addEventListener('keyup',e=>{
+  keys[e.key]=false;
+  if(e.code==='Space'){e.preventDefault();if(charging)releaseShot();}
+});
+
+function startCharge(){charging=true;chargeStart=performance.now();power=10;setStatus('Carregando força...')}
+function releaseShot(){charging=false;shoot(power)}
+
+function shoot(p){
+  if(shots>=10)return;
+  shots++;
+  const s=getStats();
+  const dx=hoop.x-player.x,dy=hoop.y-player.y,distance=Math.hypot(dx,dy);
+  const ux=dx/distance,uy=dy/distance;
+
+  // Força ideal varia com a distância, mas a zona de 70–90% é a mais estável.
+  const idealPower=clamp(55+distance/8,68,92);
+  const forceQuality=clamp(1-Math.abs(p-idealPower)/38,0,1);
+
+  const pressureRatio=clamp(1-dist(player,defender)/240,0,1);
+  const pressurePenalty=pressureRatio*(playerType==='pro'?0.12:0.18);
+
+  const positionQuality=player.x<=350 ? 0.82 : 1;
+  const preparation=prepQuality()/100;
+  const skillControl=s.control/100;
+  const base=(s.min+s.max)/2/100;
+
+  // A chance final representa os fatores do exemplo, mantendo a faixa de precisão como referência.
+  // O resultado fica mais alto quando a execução está boa e cai com defesa/força ruim.
+  const quality=0.55*forceQuality+0.25*preparation+0.20*skillControl;
+  let chance=base*(0.62+0.55*quality)*positionQuality*(1-pressurePenalty);
+  chance=clamp(chance,0.04,0.72);
+
+  const reaches=p>=50;
+  const travel=reaches?distance:distance*clamp(0.22+(p/50)*0.72,0.22,0.94);
+  const targetX=player.x+ux*travel,targetY=player.y+uy*travel;
+  const duration=reaches?1.25-(p-50)*0.003:1.05;
+  ball={
+    x:player.x,y:player.y,z:0,vx:0,vy:0,vz:-520,r:11,life:0,
+    duration,targetX,targetY,reaches,willScore:reaches&&Math.random()<chance,
+    chance,pressurePenalty
+  };
+  updateUI();
+  if(!reaches)setStatus('Muito fraco — a bola ficou curta.');
+  else setStatus('Arremesso lançado! Chance estimada: '+Math.round(chance*100)+'%.');
+}
+
+function update(dt){
+  if(netShake>0){ netShake=Math.max(0,netShake-dt*3.8); netPulse=Math.max(0,netPulse-dt*2.8); }
+  if(charging){
+    power=clamp(10+(performance.now()-chargeStart)/22,10,100);
+    updateUI();
+  }
+  if(!ball){
+    const sp=280;
+    if(keys.ArrowLeft||keys.a)player.x-=sp*dt;
+    if(keys.ArrowRight||keys.d)player.x+=sp*dt;
+    if(keys.ArrowUp||keys.w)player.y-=sp*dt;
+    if(keys.ArrowDown||keys.s)player.y+=sp*dt;
+    player.x=clamp(player.x,350,W-45);player.y=clamp(player.y,95,H-95);
+  }
+
+  // Defensor marca o jogador com movimento suave.
+  const tx=clamp(player.x-125,350,W-170),ty=player.y;
+  const ax=(tx-defender.x)*7-defender.vx*4;
+  const ay=(ty-defender.y)*7-defender.vy*4;
+  defender.vx+=ax*dt;defender.vy+=ay*dt;
+  const vmax=245,vm=Math.hypot(defender.vx,defender.vy);
+  if(vm>vmax){defender.vx=defender.vx/vm*vmax;defender.vy=defender.vy/vm*vmax}
+  defender.x+=defender.vx*dt;defender.y+=defender.vy*dt;
+  updateUI();
+
+  if(ball){
+    ball.life+=dt;
+    const t=clamp(ball.life/ball.duration,0,1);
+    ball.x=player.x+(ball.targetX-player.x)*t;
+    ball.y=player.y+(ball.targetY-player.y)*t;
+    ball.z=Math.sin(Math.PI*t)*(80+power*0.35);
+    if(t>=1){
+      if(ball.reaches){
+        if(ball.willScore){made++;netShake=1;netPulse=1;setStatus('🏀 CESTA! Boa execução — '+Math.round(ball.chance*100)+'% de chance estimada.')}
+        else setStatus('Quase! A bola chegou à cesta, mas errou.');
+      }else setStatus('A bola ficou curta e caiu antes da cesta.');
+      ball=null;updateUI();
+      if(shots>=10)setStatus('🏁 Série encerrada: '+made+' de 10 cestas. Clique em Reiniciar para jogar novamente.');
+    }
+  }
+}
+
+function court(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#b9783e';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,.035)';
+  for(let x=0;x<W;x+=55)ctx.fillRect(x,0,1,H);
+  for(let y=0;y<H;y+=55)ctx.fillRect(0,y,W,1);
+  ctx.strokeStyle='#fff';ctx.lineWidth=5;ctx.strokeRect(22,22,W-44,H-44);
+  ctx.lineWidth=4;ctx.strokeRect(22,H/2-105,220,210);
+  ctx.beginPath();ctx.arc(242,H/2,105,-Math.PI/2,Math.PI/2);ctx.stroke();
+  ctx.beginPath();ctx.arc(W/2,H/2,75,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(280,70);ctx.lineTo(280,H-70);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='bold 13px Arial';ctx.textAlign='center';
+  ctx.fillText('LINHA DE 3 PONTOS',350,52);
+  // cesta
+  ctx.fillStyle='#202733';ctx.fillRect(47,H/2-70,10,140);
+  ctx.fillStyle='#e5e7eb';ctx.fillRect(42,H/2-82,18,164);
+  ctx.strokeStyle='#f97316';ctx.lineWidth=8;ctx.beginPath();ctx.arc(hoop.x,hoop.y,18,0,Math.PI*2);ctx.stroke();
+  // Rede animada: balança quando a bola entra na cesta.
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;
+  const shake=netShake;
+  for(let i=-12;i<=12;i+=6){
+    const phase=(i+12)/24*Math.PI*2;
+    const sway=Math.sin(phase+performance.now()/95)*shake*7;
+    ctx.beginPath();
+    ctx.moveTo(hoop.x+i,hoop.y+5);
+    ctx.quadraticCurveTo(hoop.x+i+sway,hoop.y+18+shake*8,hoop.x+i/2-sway*.45,hoop.y+30+shake*10);
+    ctx.stroke();
+  }
+  if(netPulse>0){
+    ctx.globalAlpha=netPulse*.35;
+    ctx.strokeStyle='#fff';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(hoop.x,hoop.y+16,22+netPulse*9,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+function circle(x,y,r,fill,stroke='#111'){
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();
+  ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.stroke();
+}
+function draw(){
+  court();
+  ctx.globalAlpha=.2;circle(player.x+5,player.y+8,player.r,'#000','#000');ctx.globalAlpha=1;
+  circle(player.x,player.y,player.r,playerType==='pro'?'#2563eb':'#3b82f6');
+  ctx.fillStyle='#fff';ctx.font='bold 12px Arial';ctx.textAlign='center';
+  ctx.fillText(playerType==='pro'?'PRO':'COMUM',player.x,player.y+4);
+  circle(defender.x,defender.y,18,'#dc2626');
+  ctx.fillText('DEF',defender.x,defender.y+4);
+
+  if(ball){
+    ctx.globalAlpha=.18;circle(ball.x+6,ball.y+8,ball.r,'#000','#000');ctx.globalAlpha=1;
+    circle(ball.x,ball.y-ball.z,ball.r,'#f97316','#7c2d12');
+    ctx.strokeStyle='#7c2d12';ctx.lineWidth=2;ctx.beginPath();
+    ctx.arc(ball.x,ball.y-ball.z,ball.r*.65,-.8,1.2);ctx.stroke();
+  }
+  if(charging&&!ball){
+    ctx.save();ctx.setLineDash([7,8]);ctx.strokeStyle='rgba(255,255,255,.65)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(player.x,player.y);
+    let reach,ry;
+    if(power>=50){reach=hoop.x;ry=hoop.y}
+    else{
+      const t=clamp(.28+(power/50)*.60,.28,.88),dx=hoop.x-player.x,dy=hoop.y-player.y,d=Math.hypot(dx,dy);
+      reach=player.x+(dx/d)*(d*t);ry=player.y+(dy/d)*(d*t);
+    }
+    ctx.lineTo(reach,ry);ctx.stroke();ctx.restore();
+  }
+}
+function loop(t){
+  const dt=Math.min((t-last)/1000,.033);last=t;update(dt);draw();requestAnimationFrame(loop);
+}
+reset();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
