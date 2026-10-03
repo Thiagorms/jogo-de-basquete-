@@ -43,7 +43,7 @@ border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 3
 transition:width .04s linear}
 .status{margin-top:8px;color:#cbd5e1;font-size:13px}
 .analysis-title{font-size:15px;font-weight:900;margin-bottom:10px}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
 .card{background:#0b1220;border:1px solid #263449;border-radius:11px;padding:11px}
 .card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 .card .value{font-size:20px;font-weight:900;margin-top:4px}
@@ -51,7 +51,8 @@ transition:width .04s linear}
 .result{margin-top:10px;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px dashed #334155;color:#dbeafe;font-size:13px}
 .help{color:#cbd5e1;font-size:13px;line-height:1.55}
 .help b{color:#fff}.help ul{margin:8px 0 0 18px;padding:0}
-@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:22px}}
+@media(max-width:900px){.grid{grid-template-columns:repeat(3,1fr)}.brand h1{font-size:22px}}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.brand h1{font-size:22px}}
 @media(max-width:600px){.wrap{padding:9px}.grid{grid-template-columns:1fr 1fr}.pill{font-size:12px}.help{font-size:12px}.hud{left:8px;top:8px}}
 </style>
 </head>
@@ -95,8 +96,9 @@ transition:width .04s linear}
       <div class="card"><div class="label">Preparação</div><div class="value" id="preparation">60%</div><div class="desc">Execução do movimento antes do arremesso.</div></div>
       <div class="card"><div class="label">Precisão</div><div class="value" id="accuracy">25–35%</div><div class="desc">Faixa aproximada para uma bola livre.</div></div>
       <div class="card"><div class="label">Defesa</div><div class="value" id="defenseEffect">—</div><div class="desc">Impacto da proximidade do defensor.</div></div>
+      <div class="card"><div class="label">Probabilidade</div><div class="value" id="probability">—</div><div class="desc" id="probabilityDesc">Chance estimada de acertar este arremesso.</div></div>
     </div>
-    <div class="result" id="result">Em 10 arremessos livres, a referência do exemplo é aproximadamente <b>2–4 cestas</b> para o comum e <b>3–5</b> para o profissional.</div>
+    <div class="result" id="result">A simulação diferencia os jogadores: o <b>Comum</b> tem maior probabilidade de erro, enquanto o <b>Profissional</b> recebe maior probabilidade de acerto. Em 10 arremessos livres, a referência didática é aproximadamente <b>2–4 cestas</b> para o comum e <b>3–5</b> para o profissional.</div>
   </div>
 
   <div class="help">
@@ -130,6 +132,20 @@ function getStats(){
     : {control:70,prep:60,min:25,max:35};
 }
 function setStatus(s){document.getElementById('status').textContent=s}
+function shotChance(p){
+  const s=getStats();
+  const dx=hoop.x-player.x,dy=hoop.y-player.y,distance=Math.hypot(dx,dy);
+  const idealPower=clamp(55+distance/8,68,92);
+  const forceQuality=clamp(1-Math.abs(p-idealPower)/38,0,1);
+  const pressureRatio=clamp(1-dist(player,defender)/240,0,1);
+  const pressurePenalty=pressureRatio*(playerType==='pro'?0.12:0.18);
+  const positionQuality=player.x<=350 ? 0.82 : 1;
+  const preparation=prepQuality()/100;
+  const skillControl=s.control/100;
+  const base=(s.min+s.max)/2/100;
+  const quality=0.55*forceQuality+0.25*preparation+0.20*skillControl;
+  return clamp(base*(0.62+0.55*quality)*positionQuality*(1-pressurePenalty),0.04,0.72);
+}
 function updateUI(){
   currentStats=getStats();
   const pressureDist=dist(player,defender);
@@ -147,6 +163,9 @@ function updateUI(){
   document.getElementById('prep').textContent=Math.round(prepQuality())+'%';
   const effect=Math.round(pressure* (playerType==='pro'?12:18));
   document.getElementById('defenseEffect').textContent=effect?'-'+effect+' p.p.':'mínimo';
+  const chance=shotChance(power);
+  document.getElementById('probability').textContent=Math.round(chance*100)+'%';
+  document.getElementById('probabilityDesc').textContent='Acerto '+Math.round(chance*100)+'% • Erro '+Math.round((1-chance)*100)+'%';
 }
 function prepQuality(){
   // Ideal entre 72 e 88% de força; fora disso a preparação perde qualidade.
@@ -187,27 +206,11 @@ function releaseShot(){charging=false;shoot(power)}
 function shoot(p){
   if(shots>=10)return;
   shots++;
-  const s=getStats();
   const dx=hoop.x-player.x,dy=hoop.y-player.y,distance=Math.hypot(dx,dy);
   const ux=dx/distance,uy=dy/distance;
-
-  // Força ideal varia com a distância, mas a zona de 70–90% é a mais estável.
-  const idealPower=clamp(55+distance/8,68,92);
-  const forceQuality=clamp(1-Math.abs(p-idealPower)/38,0,1);
-
+  const chance=shotChance(p);
   const pressureRatio=clamp(1-dist(player,defender)/240,0,1);
   const pressurePenalty=pressureRatio*(playerType==='pro'?0.12:0.18);
-
-  const positionQuality=player.x<=350 ? 0.82 : 1;
-  const preparation=prepQuality()/100;
-  const skillControl=s.control/100;
-  const base=(s.min+s.max)/2/100;
-
-  // A chance final representa os fatores do exemplo, mantendo a faixa de precisão como referência.
-  // O resultado fica mais alto quando a execução está boa e cai com defesa/força ruim.
-  const quality=0.55*forceQuality+0.25*preparation+0.20*skillControl;
-  let chance=base*(0.62+0.55*quality)*positionQuality*(1-pressurePenalty);
-  chance=clamp(chance,0.04,0.72);
 
   const reaches=p>=50;
   const travel=reaches?distance:distance*clamp(0.22+(p/50)*0.72,0.22,0.94);
@@ -220,7 +223,7 @@ function shoot(p){
   };
   updateUI();
   if(!reaches)setStatus('Muito fraco — a bola ficou curta.');
-  else setStatus('Arremesso lançado! Chance estimada: '+Math.round(chance*100)+'%.');
+  else setStatus('Arremesso lançado! Probabilidade de acerto: '+Math.round(chance*100)+'% • erro: '+Math.round((1-chance)*100)+'%.');
 }
 
 function update(dt){
