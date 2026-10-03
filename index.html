@@ -98,7 +98,7 @@ transition:width .04s linear}
       <div class="card"><div class="label">Defesa</div><div class="value" id="defenseEffect">—</div><div class="desc">Impacto da proximidade do defensor.</div></div>
       <div class="card"><div class="label">Probabilidade</div><div class="value" id="probability">—</div><div class="desc" id="probabilityDesc">Chance estimada de acertar este arremesso.</div></div>
     </div>
-    <div class="result" id="result">A simulação diferencia os jogadores: o <b>Comum</b> tem maior probabilidade de erro, enquanto o <b>Profissional</b> recebe maior probabilidade de acerto. Em 10 arremessos livres, a referência didática é aproximadamente <b>2–4 cestas</b> para o comum e <b>3–5</b> para o profissional.</div>
+    <div class="result" id="result">Faça as 10 tentativas para ver o resumo final da série, incluindo cestas, erros e a probabilidade média de acerto.</div>
   </div>
 
   <div class="help">
@@ -121,6 +121,7 @@ const player={x:790,y:H/2,r:20};
 const defender={x:640,y:H/2,vx:0,vy:0};
 let keys={},charging=false,chargeStart=0,power=10,shots=0,made=0,ball=null,last=performance.now();
 let playerType='common', currentStats={control:70,prep:60,min:25,max:35};
+let shotChances=[];
 let netShake=0, netPulse=0;
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -172,7 +173,7 @@ function prepQuality(){
   return clamp(100-Math.abs(power-80)*2.5,15,100);
 }
 function reset(){
-  shots=0;made=0;power=10;ball=null;charging=false;
+  shots=0;made=0;power=10;ball=null;charging=false;shotChances=[];
   player.x=790;player.y=H/2;defender.x=640;defender.y=H/2;
   updateUI();
   setStatus('Setas/WASD: mover • Espaço: carregar e arremessar • Posicione-se atrás da linha de 3.');
@@ -209,6 +210,7 @@ function shoot(p){
   const dx=hoop.x-player.x,dy=hoop.y-player.y,distance=Math.hypot(dx,dy);
   const ux=dx/distance,uy=dy/distance;
   const chance=shotChance(p);
+  shotChances.push(chance);
   const pressureRatio=clamp(1-dist(player,defender)/240,0,1);
   const pressurePenalty=pressureRatio*(playerType==='pro'?0.12:0.18);
 
@@ -226,10 +228,20 @@ function shoot(p){
   else setStatus('Arremesso lançado! Probabilidade de acerto: '+Math.round(chance*100)+'% • erro: '+Math.round((1-chance)*100)+'%.');
 }
 
+function finishSeries(){
+  if(shots<10)return;
+  const avg=shotChances.length?Math.round(shotChances.reduce((a,b)=>a+b,0)/shotChances.length*100):0;
+  const actual=Math.round(made/shots*100);
+  document.getElementById('result').innerHTML=
+    '🏁 <b>Resumo das 10 tentativas</b><br>'+
+    '👤 <b>Comum:</b> probabilidade base de acerto <b>25–35%</b> (média de referência: <b>30%</b>) → maior chance de erro.<br>'+
+    '⭐ <b>Profissional:</b> probabilidade base de acerto <b>35–45%</b> (média de referência: <b>40%</b>) → maior chance de acerto.<br>'+
+    '🎯 <b>'+ (playerType==='pro'?'Profissional':'Comum') +' nesta série:</b> '+made+' cestas em '+shots+' tentativas ('+actual+'% de acerto real). Probabilidade média estimada nos arremessos: <b>'+avg+'%</b>.';
+}
 function update(dt){
   if(netShake>0){ netShake=Math.max(0,netShake-dt*3.8); netPulse=Math.max(0,netPulse-dt*2.8); }
   if(charging){
-    power=clamp(10+(performance.now()-chargeStart)/22,10,100);
+    power=clamp(10+(performance.now()-chargeStart)/15,10,100);
     updateUI();
   }
   if(!ball){
@@ -263,7 +275,7 @@ function update(dt){
         else setStatus('Quase! A bola chegou à cesta, mas errou.');
       }else setStatus('A bola ficou curta e caiu antes da cesta.');
       ball=null;updateUI();
-      if(shots>=10)setStatus('🏁 Série encerrada: '+made+' de 10 cestas. Clique em Reiniciar para jogar novamente.');
+      if(shots>=10){finishSeries();setStatus('🏁 Série encerrada: '+made+' de 10 cestas. Veja o resumo abaixo.');}
     }
   }
 }
