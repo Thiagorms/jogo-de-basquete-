@@ -54,9 +54,53 @@ transition:width .04s linear}
 @media(max-width:900px){.grid{grid-template-columns:repeat(3,1fr)}.brand h1{font-size:22px}}
 @media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.brand h1{font-size:22px}}
 @media(max-width:600px){.wrap{padding:9px}.grid{grid-template-columns:1fr 1fr}.pill{font-size:12px}.help{font-size:12px}.hud{left:8px;top:8px}}
+
+    #finalModal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+    #finalModal.show{display:flex}
+    .modalCard{width:min(480px,94vw);background:#10141d;border:1px solid #2b3445;border-radius:24px;padding:30px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.55)}
+    .modalTitle{font-size:28px;font-weight:900;margin-bottom:8px}.modalSub{color:#aeb8c9;margin-bottom:22px}
+    .finalPct{font-size:68px;font-weight:1000;line-height:1;margin:8px 0 20px;color:#fff}
+    .finalGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}.finalBox{background:#171d28;border-radius:14px;padding:14px}.finalBox b{display:block;font-size:20px;margin-top:4px}
+    .modalBtn{border:0;border-radius:12px;padding:13px 20px;font-weight:900;cursor:pointer;background:#fff;color:#111}
 </style>
+
+<style>
+.intro-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+background:radial-gradient(circle at center,#17243b 0%,#080b12 65%,#05070b 100%);padding:20px}
+.intro-card{width:min(520px,92vw);text-align:center;padding:42px 34px;border:1px solid rgba(255,255,255,.12);
+border-radius:24px;background:rgba(13,18,29,.92);box-shadow:0 25px 80px rgba(0,0,0,.55);backdrop-filter:blur(12px)}
+.intro-badge{display:inline-block;font-weight:800;letter-spacing:2px;font-size:12px;color:#f5b942;
+padding:8px 13px;border:1px solid rgba(245,185,66,.35);border-radius:999px;margin-bottom:14px}
+.intro-card h1{margin:4px 0 10px;font-size:clamp(30px,6vw,48px)}
+.intro-card p{opacity:.72;margin:0 0 26px}
+#startGameBtn{border:0;border-radius:12px;padding:13px 28px;font-weight:900;letter-spacing:.8px;cursor:pointer;
+background:linear-gradient(135deg,#f5b942,#ff8a3d);color:#101318;box-shadow:0 10px 30px rgba(245,185,66,.2)}
+#startGameBtn:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.series-overlay{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;
+background:rgba(3,6,11,.78);backdrop-filter:blur(8px);padding:20px}
+.series-card{width:min(560px,94vw);padding:34px;border-radius:22px;background:#101722;border:1px solid rgba(255,255,255,.12);
+box-shadow:0 25px 80px rgba(0,0,0,.6);text-align:center}
+.series-card h2{margin:0 0 20px;font-size:30px}
+.result-score{font-size:64px;font-weight:900;line-height:1;margin:8px 0}
+.result-sub{opacity:.7;margin-bottom:22px}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}
+.result-box{background:rgba(255,255,255,.045);border-radius:12px;padding:14px 8px}
+.result-box strong{display:block;font-size:23px}.result-box span{font-size:11px;opacity:.65}
+#playAgainBtn{border:0;border-radius:11px;padding:12px 24px;font-weight:800;cursor:pointer;background:#fff;color:#111}
+@media(max-width:520px){.result-grid{grid-template-columns:1fr}.result-score{font-size:52px}}
+</style>
+
 </head>
 <body>
+<div id="introOverlay" class="intro-overlay">
+  <div class="intro-card">
+    <div class="intro-badge">🏀 3PT CHALLENGE</div>
+    <h1>Desafio dos 3 Pontos</h1>
+    <p>Controle, preparação e precisão sob pressão.</p>
+    <button id="startGameBtn">INICIAR PARTIDA</button>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="top">
     <div class="brand">
@@ -64,7 +108,7 @@ transition:width .04s linear}
       <p>Teste como habilidade, preparação, força e pressão defensiva afetam o arremesso.</p>
     </div>
     <div class="info">
-      <div class="pill">Tentativas <b id="shots">0/10</b></div>
+      <div class="pill">Tentativas <b id="shots">0/5</b></div>
       <div class="pill">Cestas <b id="made">0</b></div>
       <div class="player-select">
         <button id="common" class="active">👤 Comum</button>
@@ -98,7 +142,7 @@ transition:width .04s linear}
       <div class="card"><div class="label">Defesa</div><div class="value" id="defenseEffect">—</div><div class="desc">Impacto da proximidade do defensor.</div></div>
       <div class="card"><div class="label">Probabilidade</div><div class="value" id="probability">—</div><div class="desc" id="probabilityDesc">Chance estimada de acertar este arremesso.</div></div>
     </div>
-    <div class="result" id="result">Faça as 10 tentativas para ver o resumo final da série, incluindo cestas, erros e a probabilidade média de acerto.</div>
+    <div class="result" id="result">Faça as 5 tentativas para ver a tela final com sua porcentagem de acerto.</div>
   </div>
 
   <div class="help">
@@ -129,7 +173,7 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
 function getStats(){
   return playerType==='pro'
-    ? {control:95,prep:90,min:35,max:45}
+    ? {control:95,prep:90,min:50,max:60}
     : {control:70,prep:60,min:25,max:35};
 }
 function setStatus(s){document.getElementById('status').textContent=s}
@@ -152,7 +196,7 @@ function updateUI(){
   const pressureDist=dist(player,defender);
   const pressure=Math.max(0,1-pressureDist/240);
   const pressureLabel=pressure>.72?'ALTA':pressure>.38?'MÉDIA':'BAIXA';
-  document.getElementById('shots').textContent=shots+'/10';
+  document.getElementById('shots').textContent=shots+'/5';
   document.getElementById('made').textContent=made;
   document.getElementById('pct').textContent=Math.round(power)+'%';
   document.getElementById('fill').style.width=power+'%';
@@ -173,6 +217,7 @@ function prepQuality(){
   return clamp(100-Math.abs(power-80)*2.5,15,100);
 }
 function reset(){
+  document.getElementById('finalModal')?.classList.remove('show');
   shots=0;made=0;power=10;ball=null;charging=false;shotChances=[];
   player.x=790;player.y=H/2;defender.x=640;defender.y=H/2;
   updateUI();
@@ -194,7 +239,7 @@ document.getElementById('reset').onclick=reset;
 
 addEventListener('keydown',e=>{
   keys[e.key]=true;
-  if(e.code==='Space'){e.preventDefault();if(!charging&&!ball&&shots<10)startCharge();}
+  if(e.code==='Space'){e.preventDefault();if(!charging&&!ball&&shots<5)startCharge();}
 });
 addEventListener('keyup',e=>{
   keys[e.key]=false;
@@ -205,7 +250,7 @@ function startCharge(){charging=true;chargeStart=performance.now();power=10;setS
 function releaseShot(){charging=false;shoot(power)}
 
 function shoot(p){
-  if(shots>=10)return;
+  if(shots>=5)return;
   shots++;
   const dx=hoop.x-player.x,dy=hoop.y-player.y,distance=Math.hypot(dx,dy);
   const ux=dx/distance,uy=dy/distance;
@@ -229,19 +274,23 @@ function shoot(p){
 }
 
 function finishSeries(){
-  if(shots<10)return;
+  if(shots<5)return;
   const avg=shotChances.length?Math.round(shotChances.reduce((a,b)=>a+b,0)/shotChances.length*100):0;
   const actual=Math.round(made/shots*100);
   document.getElementById('result').innerHTML=
-    '🏁 <b>Resumo das 10 tentativas</b><br>'+
+    '🏁 <b>Resultado das 5 tentativas</b><br>'+
     '👤 <b>Comum:</b> probabilidade base de acerto <b>25–35%</b> (média de referência: <b>30%</b>) → maior chance de erro.<br>'+
-    '⭐ <b>Profissional:</b> probabilidade base de acerto <b>35–45%</b> (média de referência: <b>40%</b>) → maior chance de acerto.<br>'+
+    '⭐ <b>Profissional:</b> probabilidade base de acerto <b>65–75%</b> (média de referência: <b>55%</b>) → maior chance de acerto.<br>'+
     '🎯 <b>'+ (playerType==='pro'?'Profissional':'Comum') +' nesta série:</b> '+made+' cestas em '+shots+' tentativas ('+actual+'% de acerto real). Probabilidade média estimada nos arremessos: <b>'+avg+'%</b>.';
-}
+  document.getElementById('finalPct').textContent=actual+'%';
+  document.getElementById('finalMade').textContent=made+' / 5 cestas';
+  document.getElementById('finalAvg').textContent=avg+'%';
+  document.getElementById('finalModal').classList.add('show');
+try{ if(window.showProfessionalResults) showProfessionalResults(made,5,(shotChances.reduce((a,b)=>a+b,0)/shotChances.length)); }catch(e){}}
 function update(dt){
   if(netShake>0){ netShake=Math.max(0,netShake-dt*3.8); netPulse=Math.max(0,netPulse-dt*2.8); }
   if(charging){
-    power=clamp(10+(performance.now()-chargeStart)/15,10,100);
+    power=clamp(10+(performance.now()-chargeStart)/12,10,100);
     updateUI();
   }
   if(!ball){
@@ -275,7 +324,7 @@ function update(dt){
         else setStatus('Quase! A bola chegou à cesta, mas errou.');
       }else setStatus('A bola ficou curta e caiu antes da cesta.');
       ball=null;updateUI();
-      if(shots>=10){finishSeries();setStatus('🏁 Série encerrada: '+made+' de 10 cestas. Veja o resumo abaixo.');}
+      if(shots>=5){finishSeries();setStatus('🏁 Série encerrada: '+made+' de 5 cestas. Veja o resultado final.');}
     }
   }
 }
@@ -351,5 +400,88 @@ function loop(t){
 }
 reset();requestAnimationFrame(loop);
 </script>
+
+<div id="finalModal">
+  <div class="modalCard">
+    <div class="modalTitle">🏁 Resultado final</div>
+    <div class="modalSub">Você completou as 5 tentativas</div>
+    <div class="finalPct" id="finalPct">0%</div>
+    <div class="finalGrid">
+      <div class="finalBox">Cestas<b id="finalMade">0 / 5 cestas</b></div>
+      <div class="finalBox">Probabilidade média<b id="finalAvg">0%</b></div>
+    </div>
+    <button class="modalBtn" onclick="document.getElementById('finalModal').classList.remove('show')">Continuar</button>
+  </div>
+</div>
+
+<div id="seriesOverlay" class="series-overlay" style="display:none">
+  <div class="series-card">
+    <div class="intro-badge">SÉRIE FINALIZADA</div>
+    <h2>Resultado dos 5 arremessos</h2>
+    <div id="finalAccuracy" class="result-score">0%</div>
+    <div id="finalSub" class="result-sub">Você acertou 0 de 5.</div>
+    <div class="result-grid">
+      <div class="result-box"><strong id="finalMade">0</strong><span>CESTAS</span></div>
+      <div class="result-box"><strong id="finalMissed">5</strong><span>ERROS</span></div>
+      <div class="result-box"><strong id="finalAvg">0%</strong><span>PROB. MÉDIA</span></div>
+    </div>
+    <button id="playAgainBtn">JOGAR NOVAMENTE</button>
+  </div>
+</div>
+<script>
+(function(){
+  const intro=document.getElementById('introOverlay');
+  const start=document.getElementById('startGameBtn');
+  if(start) start.onclick=()=>{intro.style.display='none';};
+  const overlay=document.getElementById('seriesOverlay');
+  const again=document.getElementById('playAgainBtn');
+  if(again) again.onclick=()=>{
+      overlay.style.display='none';
+      intro.style.display='none';
+      try{
+        if(typeof resetGame==='function') resetGame();
+        else {
+          // Fallback: recarrega apenas os elementos do jogo sem navegar para outra página.
+          location.href = window.location.href.split('#')[0];
+        }
+      }catch(e){ window.location.href = window.location.href.split('#')[0]; }
+    };
+
+  // Expõe uma função segura para a lógica existente chamar ao terminar 5 tentativas.
+  window.showProfessionalResults=function(made, attempts, avg){
+    const pct=Math.round((made/attempts)*100);
+    document.getElementById('finalAccuracy').textContent=pct+'%';
+    document.getElementById('finalSub').textContent='Você acertou '+made+' de '+attempts+'.';
+    document.getElementById('finalMade').textContent=made;
+    document.getElementById('finalMissed').textContent=attempts-made;
+    document.getElementById('finalAvg').textContent=Math.round(avg)+'%';
+    overlay.style.display='flex';
+  };
+})();
+</script>
+
+<script>
+window.resetGame=function(){
+  try{
+    if(typeof shots!=='undefined') shots=0;
+    if(typeof made!=='undefined') made=0;
+    if(typeof score!=='undefined') score=0;
+    if(typeof shotChances!=='undefined') shotChances.length=0;
+    if(typeof gameOver!=='undefined') gameOver=false;
+    if(typeof charging!=='undefined') charging=false;
+    if(typeof power!=='undefined') power=0;
+    if(typeof netShake!=='undefined') netShake=0;
+    if(typeof netPulse!=='undefined') netPulse=0;
+    if(typeof resetPositions==='function') resetPositions();
+    if(typeof updateHUD==='function') updateHUD();
+    if(typeof draw==='function') draw();
+    else if(typeof render==='function') render();
+  }catch(e){
+    // Último recurso: navegação normal, evitando tela branca em frames estranhos.
+    window.location.assign(window.location.href.split('#')[0]);
+  }
+};
+</script>
+
 </body>
 </html>
